@@ -1,0 +1,19 @@
+{
+  "name": "metrito-tracking-tag",
+  "version": "1.0.0",
+  "description": "A tracking script to send website events to Metrito",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Metrito/metrito-tracking-tag.git"
+  },
+  "author": "Metrito",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/Metrito/metrito-tracking-tag/issues"
+  },
+  "homepage": "https://github.com/Metrito/metrito-tracking-tag#readme"
+}
