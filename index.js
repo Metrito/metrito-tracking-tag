@@ -113,28 +113,108 @@
    * Class responsible for checking Facebook Pixel loading
    */
   class FacebookPixelChecker {
-    constructor(maxRetries = 30, retryInterval = 100) {
-      this.maxRetries = maxRetries;
-      this.retryInterval = retryInterval;
-      this.retries = 0;
+    constructor(maxWaitTime = 5000) {
+      this.maxWaitTime = maxWaitTime;
+      this.hasFbclid = this.checkForFbclid();
+      this.pixelLoaded = false;
+      this.cookiesSet = false;
     }
 
-    async checkPixel() {
-      return new Promise((resolve, reject) => {
-        const check = () => {
-          if (window.fbq && window.fbq.loaded) {
-            console.log("Facebook Pixel has loaded");
+    checkForFbclid() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.has("fbclid");
+    }
+
+    async checkPixelAndCookies() {
+      return new Promise((resolve) => {
+        let timeoutId;
+
+        const checkComplete = () => {
+          if (this.pixelLoaded && this.cookiesSet) {
+            clearTimeout(timeoutId);
             resolve(true);
-          } else if (this.retries >= this.maxRetries) {
-            console.warn("Facebook Pixel not loaded after maximum retries");
-            resolve(false);
-          } else {
-            this.retries++;
-            setTimeout(check, this.retryInterval);
           }
         };
-        check();
+
+        this.waitForPixel().then(() => {
+          this.pixelLoaded = true;
+          checkComplete();
+        });
+
+        if ("cookieStore" in window) {
+          cookieStore.addEventListener("change", (event) => {
+            for (const cookie of event.changed) {
+              if (this.hasFbclid && (cookie.name === "_fbc" || cookie.name === "_fbp")) {
+                console.log(`Facebook cookie set: ${cookie.name}`);
+                this.cookiesSet = true;
+                checkComplete();
+                break;
+              } else if (!this.hasFbclid && cookie.name === "_fbp") {
+                console.log(`Facebook _fbp cookie set`);
+                this.cookiesSet = true;
+                checkComplete();
+                break;
+              }
+            }
+          });
+        } else {
+          console.warn("CookieStore API not available, falling back to periodic checks");
+          this.fallbackCookieCheck(checkComplete);
+        }
+
+        timeoutId = setTimeout(() => {
+          if (!this.pixelLoaded) {
+            console.warn("Facebook Pixel did not load within the specified time");
+          }
+          if (!this.cookiesSet) {
+            console.warn("Required Facebook cookies not set within the specified time");
+          }
+          resolve(this.pixelLoaded && this.cookiesSet);
+        }, this.maxWaitTime);
       });
+    }
+
+    async waitForPixel() {
+      return new Promise((resolve) => {
+        if (window.fbq && typeof window.fbq === "function") {
+          console.log("Facebook Pixel already loaded");
+          resolve(true);
+        } else {
+          const pixelCheckInterval = setInterval(() => {
+            if (window.fbq && typeof window.fbq === "function") {
+              console.log("Facebook Pixel loaded");
+              clearInterval(pixelCheckInterval);
+              resolve(true);
+            }
+          }, 50);
+        }
+      });
+    }
+
+    fallbackCookieCheck(callback) {
+      const checkInterval = setInterval(() => {
+        const cookies = this.getFacebookCookies();
+        if (this.hasFbclid && (cookies.fbc || cookies.fbp)) {
+          console.log("Facebook cookies set:", cookies);
+          this.cookiesSet = true;
+          clearInterval(checkInterval);
+          callback();
+        } else if (!this.hasFbclid && cookies.fbp) {
+          console.log("Facebook _fbp cookie set");
+          this.cookiesSet = true;
+          clearInterval(checkInterval);
+          callback();
+        }
+      }, 50);
+    }
+
+    getFacebookCookies() {
+      const cookies = document.cookie.split("; ").reduce((acc, cookie) => {
+        const [name, value] = cookie.split("=");
+        acc[name] = value;
+        return acc;
+      }, {});
+      return { fbc: cookies._fbc || null, fbp: cookies._fbp || null };
     }
   }
 
@@ -151,13 +231,13 @@
 
     async init() {
       // Verifica se o Facebook Pixel foi carregado antes de continuar
-      await this.fbPixelChecker.checkPixel();
+      await this.fbPixelChecker.checkPixelAndCookies();
 
       this.leadId = await this.getOrCreateLeadId();
       this.utmHandler = new UtmHandler(this.leadId);
       this.utmHandler.updateUrl();
       this.trackPageView();
-      this.injectLeadIdOnHiddenInput('form_fields[lead_id]');
+      this.injectLeadIdOnHiddenInput("form_fields[lead_id]");
       document.addEventListener("submit", (ev) => this.handleFormSubmit(ev));
     }
 
@@ -299,9 +379,9 @@
 
     handleFormSubmit(ev) {
       // Valores para <input name="x"> que estamos procurando
-      const attributes = ['name', 'email', 'phone'];
+      const attributes = ["name", "email", "phone"];
       const check = (k, v) => new RegExp(`(^|\\[)['"]?${k}['"]?($|\\])`).test(v);
-      
+
       // Procura valores na lista de elementos do <form>
       const data = Array.from(ev?.target?.elements || []).reduce((acc, el) => {
         if (el.name && el.value) {
