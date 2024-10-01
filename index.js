@@ -295,7 +295,8 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
 
       // Configura todos os triggers configurados para esta página
       const url = "https://api.metrito.com/v2/tracking/conversions/" + this.containerDomain;
-      (await this.getData(url) || []).forEach((conversion) => this.setupTrigger(conversion));
+      this.conversions = await this.getData(url) || [];
+      this.conversions.forEach(this.setupTrigger);
 
       // Configura outros eventos
       this.trackPageView();
