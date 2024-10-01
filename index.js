@@ -295,8 +295,8 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
 
       // Configura todos os triggers configurados para esta página
       const url = "https://api.metrito.com/v2/tracking/conversions/" + this.containerDomain;
-      this.conversions = await this.getData(url) || [];
-      this.conversions.forEach(this.setupTrigger);
+      this.conversions = (await this.getData(url)) || [];
+      this.conversions.forEach((conversion) => this.setupTrigger(conversion));
 
       // Configura outros eventos
       this.trackPageView();
@@ -310,9 +310,9 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         method: "GET",
         mode: "cors",
         credentials: "omit",
-      }).then((data) => {
-        Logger.info("Data retrieved:", data);
-        return data;
+      }).then((res) => {
+        Logger.info("Data retrieved:", res.data);
+        return res.data;
       }).catch((error) => {
         Logger.error("Error retrieving data:", error);
       });
@@ -549,7 +549,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
 
   // Expondo a função para chamar eventos como window.metrito.event('eventName', eventData)
   window.metrito = {
-    // tracking,
+    tracking,
     event: async (eventName, eventData) => {
       await tracking.trackEvent(eventName, eventData);
     },
