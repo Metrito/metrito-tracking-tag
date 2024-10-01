@@ -477,24 +477,30 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       
       // Se for possível, configura o trigger
       switch (triggerConfig.triggerType) {
-        case "page_view":
+        case "page_view": {
           return this.setupTriggerTimeout(0, eventName, eventConfig);
-        case "page_view_duration":
+        }
+        case "page_view_duration": {
           const delay = triggerConfig.timeThreshold || 0;
           return this.setupTriggerTimeout(delay, eventName, eventConfig);
-        case "scroll_depth":
+        }
+        case "scroll_depth": {
           const pct = triggerConfig.scrollPercentage || 0;
           return this.setupTriggerWindowScroll(pct, eventName, eventConfig);
-        case "element_click":
+        }
+        case "element_click": {
           const selector = triggerConfig.elementSelector;
           return this.setupTriggerElementEvent(selector, 'click', eventName, eventConfig);
-        case "element_hover":
+        }
+        case "element_hover": {
           const selector = triggerConfig.elementSelector;
           return this.setupTriggerElementEvent(selector, 'mouseover', eventName, eventConfig);
-        case "element_view":
+        }
+        case "element_view": {
           const selector = triggerConfig.elementSelector;
           const opt = triggerConfig.elementObserverOptions;
           return this.setupTriggerElementObserver(selector, opt, eventName, eventConfig);
+        }
       }
     }
 
