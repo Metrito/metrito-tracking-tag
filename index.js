@@ -468,7 +468,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       const path = window.location.pathname;
       if (!loadOn) return;
       else if (loadOn === "specific_pages") {
-        if (!specificPages?.includes(path)) return;
+        if (!(specificPages?.includes(path))) return;
       } else if (loadOn === "regex") {
         const regex = new RegExp(specificPages?.[0] || '^$');
         if (!regex.test(path)) return;
