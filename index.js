@@ -1,46 +1,18 @@
 // https://gist.github.com/matheusb-comp/040183787c587fb9b65bd6853c9afe28
-
-/**
- * Reads the entire response body and process based in the Content-Type header
- * https://developer.mozilla.org/en-US/docs/Web/API/Body
- * 
- * @param {object}  response    A response from a fetch request
- * @param {boolean} arrayBuffer When body can't be processed to `text`,
- * `json`, or `form-data`, process it to an ArrayBuffer or a Blob (default)
- * 
- * @return {Promise} A promise that resolves after the entire body is processed
- */
-function processBody(response, arrayBuffer = false) {
-  const mime = (response.headers.get('Content-Type') || '').split(',')[0]
-  if (mime.includes('text')) return response.text()
-  else if (mime.includes('json')) return response.json()
-  else if (mime.includes('form-data')) return response.formData()
-  else return (arrayBuffer) ? response.arrayBuffer() : response.blob()
-}
-
-/**
- * Requests a resource using fetch, and process the response body by default
- * 
- * @param {string}  resource     URL of a network resource
- * @param {object}  options      Fetch request options object
- * @param {boolean} readBody     Read and process the entire response body
- * @param {boolean} arrayBuffer  When body can't be processed to `text`,
- * `json`, or `form-data`, process it to an ArrayBuffer or a Blob (default)
- * 
- * @return {Promise} A promise that resolves when the request is successful
- * (HTTP status code between 200 and 299) and rejects otherwise.
- * Errors are similar to the Axios library, with `error.response` (HTTP errors)
- * and `error.message` (failed to fetch / cancelled requests)
- */
 function request(resource, options, readBody = true, arrayBuffer = false) {
+  function processBody(response, arrayBuffer = false) {
+    const mime = (response.headers.get('Content-Type') || '').split(',')[0]
+    if (mime.includes('text')) return response.text()
+    else if (mime.includes('json')) return response.json()
+    else if (mime.includes('form-data')) return response.formData()
+    else return (arrayBuffer) ? response.arrayBuffer() : response.blob()
+  }
   return new Promise((resolve, reject) => {
     const config = { resource, ...options }
     fetch(resource, options)
-      // Reject if not ok (HTTP status not in the range 200-299)
       .then((response) => {
         const message = 'Request failed'
         const res = { response, config }
-        // If requested, read and process the entire response body
         if (readBody) processBody(response, arrayBuffer).then((data) => {
           return (response.ok)
             ? resolve({ ...res, data })
@@ -48,13 +20,11 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         })
         else (response.ok) ? resolve(res) : reject({ ...res, message })
       })
-      // Network/Cancel errors, similar to the error handling in Axios
       .catch((error) => reject({ message: error.message, config }))
   })
 }
 
 // Inicializa o tracking quando a página for carregada
-
 (async function () {
   console.log("Tracking initialized with container:", window.location.host);
 
@@ -318,14 +288,23 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       });
     }
 
-    // TODO: Substituir fetch por sendBeacon (para POST JSON)
     sendData(url, data) {
-      request(url, {
+      // Quando disponível, envia usando sendBeacon
+      // if (
+      //   typeof window.navigator.sendBeacon === 'function' &&
+      //   window.navigator.sendBeacon(url, JSON.stringify(data))
+      // ) return;
+
+      // TODO: Aceitar modo "no-cors" no servidor (body "text/plain")
+      // NOTE: Opção "keepalive" não tem suporte no Firefox
+      // Fallback para fetch com keepalive ignorando retorno (no-cors)
+      fetch(url, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(data),
-      }).then(() => {
-        Logger.info(`Data sent to ${url}:`, data);
+        headers: { "Content-Type": "application/json" },
+        mode: "cors",
+        keepalive: true,
+        credentials: "omit",
       }).catch((error) => {
         Logger.error(`Error sending data to ${url}:`, error);
       });
@@ -439,7 +418,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       const check = (k, v) => new RegExp(`(^|\\[)['"]?${k}['"]?($|\\])`).test(v);
 
       // Procura valores na lista de elementos do <form>
-      const data = Array.from(ev?.target?.elements || []).reduce((acc, el) => {
+      const data = Array.from(ev.target.elements || []).reduce((acc, el) => {
         if (el.name && el.value) {
           attributes.forEach((attr) => {
             if (check(attr, el.name)) acc[attr] = el.value;
@@ -468,9 +447,9 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       const path = window.location.pathname;
       if (!loadOn) return;
       else if (loadOn === "specific_pages") {
-        if (!(specificPages?.includes(path))) return;
+        if (!((specificPages || []).includes(path))) return;
       } else if (loadOn === "regex") {
-        const regex = new RegExp(specificPages?.[0] || '^$');
+        const regex = new RegExp((specificPages || [])[0] || '^$');
         if (!regex.test(path)) return;
       }
       Logger.info("Configuring trigger for conversion:", conversion);
@@ -500,6 +479,12 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
           const selector = triggerConfig.elementSelector;
           const opt = triggerConfig.elementObserverOptions;
           return this.setupTriggerElementObserver(selector, opt, eventName, eventConfig);
+        }
+        case "form_submit": {
+          const selector = triggerConfig.formId ?
+            `form#${triggerConfig.formId}` :
+            `form.${triggerConfig.formClass}`;
+          return this.setupTriggerFormSubmit(selector, eventName, eventConfig);
         }
       }
     }
@@ -539,6 +524,20 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         });
       }, obsOptions);
       document.querySelectorAll(selector).forEach((el) => obs.observe(el));
+    }
+
+    setupTriggerFormSubmit(selector, eventName, eventData = {}) {
+      document.querySelectorAll(selector).forEach((form) => {
+        form.addEventListener('submit', () => {
+          const fd = new FormData(form);
+          const formData = Array.from(fd.keys()).reduce((acc, k) => {
+            const v = fd.getAll(k);
+            if (acc[k] === undefined) acc[k] = v.length > 1 ? v : v[0];
+            return acc;
+          }, {});
+          this.trackEvent(eventName, { ...eventData, formData });
+        });
+      });
     }
   }
 
