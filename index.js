@@ -428,7 +428,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
       }, {});
 
       // Envia dados encontrados para o backend
-      if (Object.keys(data).length > 0) this.trackEvent("Lead", data);
+      if (Object.keys(data).length > 0) this.trackEvent("MetritoLead", data);
     }
 
     setupTrigger(conversion) {
