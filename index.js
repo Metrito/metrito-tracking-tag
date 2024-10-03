@@ -290,19 +290,18 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
 
     sendData(url, data) {
       // Quando disponível, envia usando sendBeacon
-      // if (
-      //   typeof window.navigator.sendBeacon === 'function' &&
-      //   window.navigator.sendBeacon(url, JSON.stringify(data))
-      // ) return;
+      if (
+        typeof window.navigator.sendBeacon === 'function' &&
+        window.navigator.sendBeacon(url, JSON.stringify(data))
+      ) return;
 
-      // TODO: Aceitar modo "no-cors" no servidor (body "text/plain")
       // NOTE: Opção "keepalive" não tem suporte no Firefox
       // Fallback para fetch com keepalive ignorando retorno (no-cors)
       fetch(url, {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" },
-        mode: "cors",
+        mode: "no-cors",
         keepalive: true,
         credentials: "omit",
       }).catch((error) => {
