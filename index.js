@@ -1,27 +1,26 @@
 // https://gist.github.com/matheusb-comp/040183787c587fb9b65bd6853c9afe28
 function request(resource, options, readBody = true, arrayBuffer = false) {
   function processBody(response, arrayBuffer = false) {
-    const mime = (response.headers.get('Content-Type') || '').split(',')[0]
-    if (mime.includes('text')) return response.text()
-    else if (mime.includes('json')) return response.json()
-    else if (mime.includes('form-data')) return response.formData()
-    else return (arrayBuffer) ? response.arrayBuffer() : response.blob()
+    const mime = (response.headers.get("Content-Type") || "").split(",")[0];
+    if (mime.includes("text")) return response.text();
+    else if (mime.includes("json")) return response.json();
+    else if (mime.includes("form-data")) return response.formData();
+    else return arrayBuffer ? response.arrayBuffer() : response.blob();
   }
   return new Promise((resolve, reject) => {
-    const config = { resource, ...options }
+    const config = { resource, ...options };
     fetch(resource, options)
       .then((response) => {
-        const message = 'Request failed'
-        const res = { response, config }
-        if (readBody) processBody(response, arrayBuffer).then((data) => {
-          return (response.ok)
-            ? resolve({ ...res, data })
-            : reject({ ...res, data, message })
-        })
-        else (response.ok) ? resolve(res) : reject({ ...res, message })
+        const message = "Request failed";
+        const res = { response, config };
+        if (readBody)
+          processBody(response, arrayBuffer).then((data) => {
+            return response.ok ? resolve({ ...res, data }) : reject({ ...res, data, message });
+          });
+        else response.ok ? resolve(res) : reject({ ...res, message });
       })
-      .catch((error) => reject({ message: error.message, config }))
-  })
+      .catch((error) => reject({ message: error.message, config }));
+  });
 }
 
 // Inicializa o tracking quando a página for carregada
@@ -280,20 +279,19 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         method: "GET",
         mode: "cors",
         credentials: "omit",
-      }).then((res) => {
-        Logger.info("Data retrieved:", res.data);
-        return res.data;
-      }).catch((error) => {
-        Logger.error("Error retrieving data:", error);
-      });
+      })
+        .then((res) => {
+          Logger.info("Data retrieved:", res.data);
+          return res.data.conversions;
+        })
+        .catch((error) => {
+          Logger.error("Error retrieving data:", error);
+        });
     }
 
     sendData(url, data) {
       // Quando disponível, envia usando sendBeacon
-      if (
-        typeof window.navigator.sendBeacon === 'function' &&
-        window.navigator.sendBeacon(url, JSON.stringify(data))
-      ) return;
+      if (typeof window.navigator.sendBeacon === "function" && window.navigator.sendBeacon(url, JSON.stringify(data))) return;
 
       // NOTE: Opção "keepalive" não tem suporte no Firefox
       // Fallback para fetch com keepalive ignorando retorno (no-cors)
@@ -431,28 +429,21 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
     }
 
     setupTrigger(conversion) {
-      const {
-        eventType,
-        customEventName,
-        loadOn,
-        specificPages,
-        triggerConfig,
-        eventConfig,
-      } = conversion;
+      const { eventType, customEventName, loadOn, specificPages, triggerConfig, eventConfig } = conversion;
       // TODO: Simplificar nome do evento (usar apenas 1 campo)
       const eventName = eventType === "CustomEvent" ? customEventName : eventType;
-      
+
       // Verifica se o trigger deve ser ignorado para este path
       const path = window.location.pathname;
       if (!loadOn) return;
       else if (loadOn === "specific_pages") {
-        if (!((specificPages || []).includes(path))) return;
+        if (!(specificPages || []).includes(path)) return;
       } else if (loadOn === "regex") {
-        const regex = new RegExp((specificPages || [])[0] || '^$');
+        const regex = new RegExp((specificPages || [])[0] || "^$");
         if (!regex.test(path)) return;
       }
       Logger.info("Configuring trigger for conversion:", conversion);
-      
+
       // Se for possível, configura o trigger
       switch (triggerConfig.triggerType) {
         case "page_view": {
@@ -468,11 +459,11 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         }
         case "element_click": {
           const selector = triggerConfig.elementSelector;
-          return this.setupTriggerElementEvent(selector, 'click', eventName, eventConfig);
+          return this.setupTriggerElementEvent(selector, "click", eventName, eventConfig);
         }
         case "element_hover": {
           const selector = triggerConfig.elementSelector;
-          return this.setupTriggerElementEvent(selector, 'mouseover', eventName, eventConfig);
+          return this.setupTriggerElementEvent(selector, "mouseover", eventName, eventConfig);
         }
         case "element_view": {
           const selector = triggerConfig.elementSelector;
@@ -480,9 +471,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
           return this.setupTriggerElementObserver(selector, opt, eventName, eventConfig);
         }
         case "form_submit": {
-          const selector = triggerConfig.formId ?
-            `form#${triggerConfig.formId}` :
-            `form.${triggerConfig.formClass}`;
+          const selector = triggerConfig.formId ? `form#${triggerConfig.formId}` : `form.${triggerConfig.formClass}`;
           return this.setupTriggerFormSubmit(selector, eventName, eventConfig);
         }
       }
@@ -497,15 +486,13 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
         // Usando "scrollHeight" em vez de "offsetHeight"
         // https://css-tricks.com/how-i-put-the-scroll-percentage-in-the-browser-title-bar
         // https://medium.com/@jbbpatel94/difference-between-offsetheight-clientheight-and-scrollheight-cfea5c196937
-        const scrollPercentage = 100 * (
-          window.scrollY / (document.body.scrollHeight - window.innerHeight)
-        );
+        const scrollPercentage = 100 * (window.scrollY / (document.body.scrollHeight - window.innerHeight));
         if (scrollPercentage >= pct) {
-          window.removeEventListener('scroll', handler);
+          window.removeEventListener("scroll", handler);
           this.trackEvent(eventName, { ...eventData, scrollPercentage });
         }
       };
-      window.addEventListener('scroll', handler);
+      window.addEventListener("scroll", handler);
     }
 
     setupTriggerElementEvent(selector, domEvent, eventName, eventData = {}) {
@@ -527,7 +514,7 @@ function request(resource, options, readBody = true, arrayBuffer = false) {
 
     setupTriggerFormSubmit(selector, eventName, eventData = {}) {
       document.querySelectorAll(selector).forEach((form) => {
-        form.addEventListener('submit', () => {
+        form.addEventListener("submit", () => {
           const fd = new FormData(form);
           const formData = Array.from(fd.keys()).reduce((acc, k) => {
             const v = fd.getAll(k);
